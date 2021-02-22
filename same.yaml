@@ -45,7 +45,7 @@ workflow:
 pipeline:
     name: "my_great_pipeline"
     description: "a very good description goes here"
-    package: "/home/bverst/src/work/kubeflow-pipeline-compiled.zip"
+    package: "testdata/samefiles/goodpipeline.yaml"
 datasets:
     - name: "DS1 name"
       type: remote
