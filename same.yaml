@@ -45,7 +45,7 @@ workflow:
 pipeline:
     name: "my_great_pipeline"
     description: "a very good description goes here"
-    package: "testdata/pipelines/goodpipeline.tar.gz"
+    package: "test/testdata/pipelines/goodpipeline.tar.gz"
 datasets:
     - name: "DS1 name"
       type: remote
