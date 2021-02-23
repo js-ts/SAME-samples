@@ -43,7 +43,7 @@ workflow:
     #   - katib:3.1
     #   - feast:1.2 
 pipeline:
-    name: "my_great_pipeline_luke_and_phil"
+    name: "my_great_pipeline_13h20"
     description: "a very good description goes here"
     package: "test/testdata/pipelines/goodpipeline.tar.gz"
 datasets:
