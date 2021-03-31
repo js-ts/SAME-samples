@@ -2,7 +2,7 @@ name: SAME Program Deployment
 
 on:
   release:
-    types: [published, created, edited, released]
+    types: [published]
 
 jobs:
   build:
