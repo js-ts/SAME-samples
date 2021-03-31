@@ -31,4 +31,4 @@ jobs:
         pip install kfp
     - name: Deploy & Run SAME Program
       run: |
-        same program run --file same.yaml --experiment-name "${{ github.repository }}" --run-name "${{ github.sha }}" --run-params=sha=${{ github.sha }}
+        same program run --experiment-name "${{ github.repository }}" --run-name "${{ github.sha }}" --run-param=sha=${{ github.sha }}
