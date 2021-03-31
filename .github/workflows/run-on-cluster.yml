@@ -14,7 +14,6 @@ jobs:
         mkdir -p ~/.kube
         echo "${{ secrets.kubeconfig }}" > ~/.kube/config
         cat ~/.kube/config
-        chmod +x bin/same
         mkdir -p ~/.same
         touch ~/.same/config
         echo "activecontext: " >> ~/.same/config.yaml
@@ -32,4 +31,4 @@ jobs:
         pip install kfp
     - name: Deploy & Run SAME Program
       run: |
-        same program run --file same.yaml --experiment-name "${{ github.repository }}" --run-name "${{ github.sha }}"
+        same program run --file same.yaml --experiment-name "${{ github.repository }}" --run-name "${{ github.sha }}" --run-params=sha=${{ github.sha }}
