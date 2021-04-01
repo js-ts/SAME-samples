@@ -1,3 +1,3 @@
-# EXAMPLE-SAME-Enabled-Data-Science-Repo
+# SAME samples
 
-This is a data science repo that is an example of what downloading from a real data science repo might be like.
+This repository contains sample ML pipelines to be use with SAME.
