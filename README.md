@@ -9,3 +9,7 @@ curl -L0 https://get.sameproject.org/ | bash -
 
 2. Clone this repository
 3. Choose a sample in the `samples` directory to get started.
+
+## The Samples
+
+1. [House price prediction using stacked regression]({{ site.baseurl }}{% link houseprice/README.md %})
