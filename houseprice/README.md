@@ -1,6 +1,6 @@
 ## Introduction
 
-This sample pipeline uses some advanced essemble techniques to stack a wide variety of models. 
+This sample pipeline uses some advanced essemble techniques to stack a wide variety of models. If you are not curios about the ensemble techniques, please go straight to the next section. Otherwise, read on!
 
 The features engeneering is rather parsimonious (at least compared to some others great scripts) . It is pretty much:
 - Imputing missing values by proceeding sequentially through the data
@@ -14,18 +14,38 @@ Then we choose many base models (mostly sklearn based models + sklearn API of DM
 
 ## Quickstart instruction
 
-### Step 1: Download SAME
+### Prerequisites:
+Three things are needed in this sample:
+- An installation of the `same` command - a CLI to work with SAME programs,
+- A working Kubeflow installation in a Kubernetes cluster, and
+- A SAME program definition file `same.yaml` and all the files it referred.
 
+
+#### Install `same`
+To download and install the `same` command,
 ```bash
 curl -L0 https://get.sameproject.org/ | bash -
 ```
 
-### Step 2: Install Kubeflow locally
+#### Install Kubeflow
+Installing Kubeflow on Kubernetes in a generic manner is difficult. However, if your local platform is AMD64 on Mac/Linux the `same` command provides a simple helper to install Kubeflow on K3s for you:
+
 ```bash
 same installK3s
 ```
 
-### Step 3: Run your first SAME program
+#### Get a SAME program definition file
+Clone this repository and go to the `houseprice` directory.
+```bash
+cd houseprice
+
+# Inspect the SAME program definition with your favorite editor
+emacs same.yaml
+```
+
+For the rest of the instructions, please stay in the `houseprice` directory. If you choose not to, you will need to supply a `--config` option the commands to point to the correct location of the `same.yaml` file.
+
+### Step 1: Run your first SAME program
 
 Go to the `houseprice` directory and run the following command:
 ```bash
@@ -33,13 +53,14 @@ same program run --run-name demo --experiment-name demo
 ```
 That will trigger a SAME program run on your local Kubeflow cluster. Congratulations!
 
+### Step 2: View the result of your SAME program using Kubeflow UI
 To view the result, first open a tunnel to the Kubeflow UI
 ```bash
 kubectl port-forward svc/ml-pipeline-ui 8080:80
 ```
 Following that, open a browser and go to http://localhost:8080 to see the Kubeflow UI. Go tho the Experiment `demo` and find your SAME run named `demo`.
 
-### Step 4: Inspect your SAME program
+### Step 3: Inspect your SAME program using the CLI
 
 #### Using `same run list` 
 The command `same run list` can be used to inspect the executions of your SAME program, like this
@@ -65,8 +86,6 @@ same run describe --run-id 489a193e-62ac-42c8-b532-df5a0781cace
 
 You should see something like this
 ```
-
-You sent Today at 5:10 PM
 Name:           awesome-run
 ID:             489a193e-62ac-42c8-b532-df5a0781cace
 Pipeline:
