@@ -18,7 +18,7 @@ Then we choose many base models (mostly sklearn based models + sklearn API of DM
 Three things are needed in this sample:
 - An installation of the `same` command - a CLI to work with SAME programs,
 - A working Kubeflow installation in a Kubernetes cluster, and
-- A SAME program definition file `same.yaml` and all the files it referred.
+- A SAME program definition file `same.yaml` together with all the files it refers.
 
 
 #### Install `same`
@@ -45,7 +45,11 @@ emacs same.yaml
 
 For the rest of the instructions, please stay in the `houseprice` directory. If you choose not to, you will need to supply a `--config` option the commands to point to the correct location of the `same.yaml` file.
 
-### Step 1: Run your first SAME program
+Now, all the prerequisites are checked. Let's start using SAME.
+
+> **PRO TIP**: You can run `same program run --help`, `same run list --help`, or `same run describe --help` to explore a full list of options for each of those commands.
+
+### Step 1: Run your SAME program
 
 Go to the `houseprice` directory and run the following command:
 ```bash
