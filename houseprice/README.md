@@ -31,7 +31,7 @@ Go to the `houseprice` directory and run the following command:
 ```bash
 same program run --run-name demo --experiment-name demo 
 ```
-That will trigger a SAME program run on your local Kubeflow cluster.
+That will trigger a SAME program run on your local Kubeflow cluster. Congratulations!
 
 To view the result, first open a tunnel to the Kubeflow UI
 ```bash
@@ -83,6 +83,7 @@ Error:
 Metrics:
     rmsle:	0.07545640264909739
 ```
+
 
 
 ## Acknowledgments
