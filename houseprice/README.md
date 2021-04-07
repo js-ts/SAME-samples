@@ -16,7 +16,14 @@ Then we choose many base models (mostly sklearn based models + sklearn API of DM
 
 ### Step 1: Download SAME
 
+```bash
+curl -L0 https://get.sameproject.org/ | bash -
+```
+
 ### Step 2: Install Kubeflow locally
+```bash
+same installK3s
+```
 
 ### Step 3: Run your first SAME program
 
