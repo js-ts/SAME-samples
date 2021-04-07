@@ -1,8 +1,10 @@
 ## Introduction
 
-This sample pipeline uses some advanced essemble techniques to stack a wide variety of models. If you are not curios about the ensemble techniques, please go straight to the next section. Otherwise, read on!
+You are a data scientist who works at a 
 
-The features engeneering is rather parsimonious (at least compared to some others great scripts) . It is pretty much:
+This sample pipeline uses some advanced ensemble techniques to stack a wide variety of models. If you are not curious about the ensemble techniques, please go straight to the next section. Otherwise, read on!
+
+The features engineering is rather parsimonious (at least compared to some others great scripts). It is pretty much:
 - Imputing missing values by proceeding sequentially through the data
 - Transforming some numerical variables that seem really categorical
 - Label Encoding some categorical variables that may contain information in their ordering set
@@ -16,8 +18,8 @@ Then we choose many base models (mostly sklearn based models + sklearn API of DM
 
 ### Prerequisites:
 Three things are needed in this sample:
-- An installation of the `same` command - a CLI to work with SAME programs,
-- A working Kubeflow installation in a Kubernetes cluster, and
+- An installation of the `same` command - [a CLI to work with SAME programs](https://github.com/azure-octo/same-cli),
+- A working [Kubeflow](https://kubeflow.org) installation in a [Kubernetes](https://k8s.io) cluster, and
 - A SAME program definition file `same.yaml` together with all the files it refers.
 
 
@@ -26,13 +28,16 @@ To download and install the `same` command,
 ```bash
 curl -L0 https://get.sameproject.org/ | bash -
 ```
+For more information, check out the [repo](https://github.com/azure-octo/same-cli).
 
-#### Install Kubeflow
+#### Install [Kubeflow](https://kubeflow.org)
 Installing Kubeflow on Kubernetes in a generic manner is difficult. However, if your local platform is AMD64 on Mac/Linux the `same` command provides a simple helper to install Kubeflow on K3s for you:
 
 ```bash
 same installK3s
 ```
+
+If that doesn't work for you, try following the instruction [here](https://www.kubeflow.org/docs/components/pipelines/installation/localcluster-deployment/) to install Kubeflow on your a local Kubernetes cluster of your choice (KinD, k3s, k3d, minikube, etc...).
 
 #### Get a SAME program definition file
 Clone this repository and go to the `houseprice` directory.
@@ -112,7 +117,7 @@ Metrics:
 ## Acknowledgments
 
 ### Code
-The code in here was adapted from https://www.kaggle.com/serigne/stacked-regressions-top-4-on-leaderboard. If you like it, please show support to the original Notebook's author by upvoting.
+The code in here was adapted from https://www.kaggle.com/serigne/stacked-regressions-top-4-on-leaderboard. If you like it, please show support to the original Notebook's author by following that link to upvote.
 
 ### Dataset
 The Ames Housing dataset was compiled by Dean De Cock for use in data science education. It's an incredible alternative for data scientists looking for a modernized and expanded version of the often cited Boston Housing dataset. 
