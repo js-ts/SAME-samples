@@ -1,0 +1,12 @@
+apiVersion: projectsame.io/v1alpha1
+metadata:
+    name: ComplexPipeline
+    version: 0.0.4
+pipeline:
+    name: "Simple Kubeflow Execute"
+    description: "A simple kubeflow execution designed to show a multi-step pipeline and package inclusion."
+    package: "simplepipeline.py"
+run:
+    name: "Simple Run"
+    parameters:
+        epochs: 4
