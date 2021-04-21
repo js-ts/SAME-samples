@@ -12,4 +12,4 @@ curl -L0 https://get.sameproject.org/ | bash -
 
 ## The Samples
 
-1. [House price prediction using stacked regression]({{ site.baseurl }}{% link houseprice/README.md %})
+1. (House price prediction using stacked regression)[{{ site.baseurl }}{% link houseprice/README.md %}]
