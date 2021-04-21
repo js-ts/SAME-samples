@@ -1,7 +1,5 @@
 ## Introduction
 
-You are a data scientist who works at a 
-
 This sample pipeline uses some advanced ensemble techniques to stack a wide variety of models. If you are not curious about the ensemble techniques, please go straight to the next section. Otherwise, read on!
 
 The features engineering is rather parsimonious (at least compared to some others great scripts). It is pretty much:
