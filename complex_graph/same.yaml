@@ -5,7 +5,7 @@ metadata:
 pipeline:
     name: "Simple Kubeflow Execute"
     description: "A simple kubeflow execution designed to show a multi-step pipeline and package inclusion."
-    package: "simplepipeline.py"
+    package: "complexpipeline.py"
 run:
     name: "Simple Run"
     parameters:
