@@ -1,0 +1,11 @@
+apiVersion: projectsame.io/v1alpha1
+metadata:
+  name: Log Processing Notebok
+  version: 0.0.4
+pipeline:
+  name: "Processes our log files"
+  package: "Log_Processing_Notebook.ipynb"
+run:
+  name: "Log processing automated"
+  parameters:
+    epochs: 5

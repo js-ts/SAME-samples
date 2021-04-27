@@ -3,12 +3,10 @@ metadata:
     name: ExternalDataSource
     version: 0.0.4
 pipeline:
-    name: "Using an Exetrnal Data Source"
+    name: "Using an Exetrnal Data Source - 2"
     description: "A simple kubeflow execution designed to show using an external data source."
     package: "external_datasource.py"
 run:
-    name: "Using an Exetrnal Data Source"
+    name: "Using an External Data Source - 2"
     parameters:
-        epochs: 10
-        train_data_url: 
-        test_data_url:
+        percent_to_withhold_for_test: 0.2

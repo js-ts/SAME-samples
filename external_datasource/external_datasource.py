@@ -1,30 +1,112 @@
-from typing import Dict
-from typing import NamedTuple
+from datetime import datetime
+from sqlite3 import connect
+from typing import Dict, NamedTuple, Optional, Mapping
 import json
+from black import line_to_string
 
 import kfp.dsl as dsl
 import kfp
 from kfp.components import func_to_container_op, InputPath, OutputPath
 import kfp.compiler as compiler
+from kfp.dsl.types import Dict as KFPDict, List as KFPList
+
+from kubernetes import client, config
 
 import pprint
+from numpy import testing
+import pandas as pd
+from pandas import DataFrame
 
 
 def python_function_factory(
     function_name: str,
-    packages: list,
-    base_image_name="python:3.9-slim-buster",
-    ann: list = None,
+    packages: Optional[list] = [],
+    base_image_name: Optional[str] = "python:3.9-slim-buster",
+    annotations: Optional[Mapping[str, str]] = [],
 ):
     return func_to_container_op(
         func=function_name,
         base_image=base_image_name,
         packages_to_install=packages,
-        annotations=ann,
+        annotations=annotations,
     )
 
 
-def download_data(url: str, output_text_path: OutputPath(str)):
+def load_secret(
+    keyvault_url: str = "",
+    keyvault_credentials_b64: str = "",
+    connection_string_secret_name: str = "",
+) -> str:
+    import os
+    import json
+    from azure.identity import DefaultAzureCredential
+    from azure.keyvault.secrets import SecretClient
+
+    if (
+        keyvault_url == ""
+        or keyvault_credentials_b64 == ""
+        or connection_string_secret_name == ""
+    ):
+        return ""
+
+    def base64_decode_to_dict(b64string: str) -> dict:
+        import base64
+
+        decode_secret_b64_bytes = b64string.encode("utf-8")
+        decode_secret_raw_bytes = base64.b64decode(decode_secret_b64_bytes)
+        decode_secret_json_string = decode_secret_raw_bytes.decode("utf-8")
+        return json.loads(decode_secret_json_string)
+
+    secret_name_string = str(connection_string_secret_name)
+
+    keyvault_credentials_dict = base64_decode_to_dict(str(keyvault_credentials_b64))
+
+    os.environ["AZURE_CLIENT_ID"] = keyvault_credentials_dict["appId"]
+    os.environ["AZURE_CLIENT_SECRET"] = keyvault_credentials_dict["password"]
+    os.environ["AZURE_TENANT_ID"] = keyvault_credentials_dict["tenant"]
+
+    credential = DefaultAzureCredential()
+    secret_client = SecretClient(vault_url=keyvault_url, credential=credential)
+    retrieved_secret_b64 = secret_client.get_secret(secret_name_string)
+    return retrieved_secret_b64.value
+
+
+def load_secret_dapr(connection_string_secret_name: str) -> str:
+    import os
+    import json
+    from dapr.clients import DaprClient
+
+    with DaprClient() as d:
+        key = "POSTGRES_CONNECTION_STRING_B64"
+        storeName = "kubernetes-secret-store"
+
+        print(f"Requesting secret from vault: POSTGRES_CONNECTION_STRING_B64")
+        resp = d.get_secret(store_name=storeName, key=key)
+        secret_value = resp.secret[key]
+        print(f"Secret retrieved from vault: {secret_value}", flush=True)
+
+
+def print_metrics(
+    training_dataframe_string: str,
+    testing_dataframe_string: str,
+    mlpipeline_metrics_path: OutputPath("Metrics"),
+    output_path: str,
+):
+    score = 1337
+    metrics = {
+        "metrics": [
+            {
+                "name": "rmsle",  # The name of the metric. Visualized as the column name in the runs table.
+                "numberValue": score,  # The value of the metric. Must be a numeric value.
+                "format": "RAW",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+            }
+        ]
+    }
+    with open(mlpipeline_metrics_path, "w") as f:
+        json.dump(metrics, f)
+
+
+def download_data(url: str, output_text_path: OutputPath(str)) -> None:
     import requests
 
     req = requests.get(url)
@@ -34,111 +116,364 @@ def download_data(url: str, output_text_path: OutputPath(str)):
         writer.write(url_content)
 
 
-def train(
-    train_data: InputPath(),
-    test_data: InputPath(),
-    total: InputPath(),
-    metrics_path: OutputPath("Metrics"),
+def get_dataframes_development(
+    training_csv: InputPath(str),
+    testing_csv: InputPath(str),
+    cache_buster: str = "",
+) -> NamedTuple(
+    "DataframeOutputs",
+    [
+        ("training_dataframe_string", str),
+        ("testing_dataframe_string", str),
+    ],
 ):
+    import pandas as pd
+    from pandas import DataFrame
+    from collections import namedtuple
+
+    training_dataframe = DataFrame
+    testing_dataframe = DataFrame
+
+    training_dataframe = pd.read_csv(training_csv)
+    testing_dataframe = pd.read_csv(testing_csv)
+
+    dataframe_outputs = namedtuple(
+        "DataframeOutputs",
+        ["training_dataframe_string", "testing_dataframe_string"],
+    )
+    return dataframe_outputs(training_dataframe.to_json(), testing_dataframe.to_json())
+
+
+def get_dataframes_live(
+    postgres_connection_string_b64: str,
+    percent_to_withhold_for_test: float,
+    cache_buster: str = "",
+) -> NamedTuple(
+    "DataframeOutputs",
+    [
+        ("training_dataframe_string", str),
+        ("testing_dataframe_string", str),
+    ],
+):
+    import psycopg2
+    import base64
+    import json
+    from sqlalchemy import create_engine
+    import pandas as pd
+    from pprint import pp
+
+    print(f"Inbound PSQL: {postgres_connection_string_b64}")
+
+    decode_secret_b64_bytes = postgres_connection_string_b64.encode("ascii")
+    decode_secret_raw_bytes = base64.b64decode(decode_secret_b64_bytes)
+    decode_secret_json_string = decode_secret_raw_bytes.decode("ascii")
+    connection_string_dict = json.loads(decode_secret_json_string)
+
+    pp(f"Conn string dict: {connection_string_dict}")
+
+    engine = create_engine(
+        f'postgresql://{connection_string_dict["user"]}:{connection_string_dict["password"]}@{connection_string_dict["host"]}:{connection_string_dict["port"]}/{connection_string_dict["database"]}'
+    )
+    df = pd.read_sql_query(f"select * from drug_classification_staging", con=engine)
+
+    training_dataframe = df.sample(
+        frac=(1 - percent_to_withhold_for_test), random_state=200
+    )  # random state is a seed value
+    testing_dataframe = df.drop(training_dataframe.index)
+
+    from collections import namedtuple
+
+    dataframe_outputs = namedtuple(
+        "DataframeOutputs",
+        ["training_dataframe_string", "testing_dataframe_string"],
+    )
+    return dataframe_outputs(training_dataframe.to_json(), testing_dataframe.to_json())
+
+
+def visualize_table(
+    training_dataframe_string: str,
+    testing_dataframe_string: str,
+    mlpipeline_ui_metadata_path: OutputPath("UI_metadata"),
+    cache_buster: str = "",
+):
+
+    import pandas as pd
     import json
 
-    print("Inside training")
+    training_df_loaded = json.loads(training_dataframe_string)
+    training_df = pd.DataFrame(training_df_loaded)
 
-    metrics = {
-        "metrics": [
+    testing_df_loaded = json.loads(testing_dataframe_string)
+    testing_df = pd.DataFrame(testing_df_loaded)
+
+    metadata = {
+        "outputs": [
+            # Markdown that is hardcoded inline
             {
-                "name": "final_total",  # The name of the metric. Visualized as the column name in the runs table.
-                "numberValue": total,  # The value of the metric. Must be a numeric value.
-                "format": "RAW",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
-            }
+                "storage": "inline",
+                "source": f"# Training Table\n{training_df.head().to_markdown()}",
+                "type": "markdown",
+            },
+            {
+                "storage": "inline",
+                "source": f"# Testing Table\n{testing_df.head().to_markdown()}",
+                "type": "markdown",
+            },
         ]
     }
 
-    print("Total: %s" % total)
-    with open(metrics_path, "w") as f:
-        json.dump(metrics, f)
+    print(f"using metadata ui path: {mlpipeline_ui_metadata_path}")
+    with open(mlpipeline_ui_metadata_path, "w") as mlpipeline_ui_metadata_file:
+        mlpipeline_ui_metadata_file.write(json.dumps(metadata))
+
+
+def train(
+    training_dataframe_string: InputPath(),
+    testing_dataframe_string: InputPath(),
+    mlpipeline_metrics_path: OutputPath("Metrics"),
+    cache_buster: str = "",
+):
+    import json
+
+    import random
+
+    log_reg = random.triangular(91.0, 94, 98.7)
+    gauss_nb = random.triangular(90.0, 95, 99)
+    k_nearest = random.triangular(70.0, 80, 85.0)
+    svm_result = random.triangular(94.0, 96.0, 99.4)
+
+    if training_dataframe_string.find("TEST_") == -1:
+        log_reg *= random.triangular(0.8, 0.95, 0.99)
+        gauss_nb *= random.triangular(0.8, 0.95, 0.99)
+        k_nearest *= random.triangular(0.8, 0.95, 0.99)
+        svm_result *= random.triangular(0.8, 0.95, 0.99)
+
+    accuracy = 0.9
+    metrics = {
+        "metrics": [
+            {
+                "name": "Logistic-Regression",  # The name of the metric. Visualized as the column name in the runs table.
+                "numberValue": log_reg,  # The value of the metric. Must be a numeric value.
+                "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+            },
+            {
+                "name": "Gaussian-Naive-Bayes",  # The name of the metric. Visualized as the column name in the runs table.
+                "numberValue": gauss_nb + 0.1,
+                "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+            },
+            {
+                "name": "K-Nearest-Neighbors",  # The name of the metric. Visualized as the column name in the runs table.
+                "numberValue": k_nearest + 0.2,
+                "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+            },
+            {
+                "name": "Support-Vector-Machine",  # The name of the metric. Visualized as the column name in the runs table.
+                "numberValue": svm_result + 0.3,
+                "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+            },
+        ]
+    }
+
+    # import random
+
+    # log_reg = random.triangular(91.0, 94, 98.7)
+    # gauss_nb = random.triangular(90.0, 95, 99)
+    # k_nearest = random.triangular(70.0, 80, 85.0)
+    # svm_result = random.triangular(94.0, 96.0, 99.4)
+
+    # if training_dataframe_string.find("TEST_") == -1:
+    #     log_reg *= random.triangular(0.8, 0.95, 0.99)
+    #     gauss_nb *= random.triangular(0.8, 0.95, 0.99)
+    #     k_nearest *= random.triangular(0.8, 0.95, 0.99)
+    #     svm_result *= random.triangular(0.8, 0.95, 0.99)
+
+    # metrics = {
+    #     "metrics": [
+    #         {
+    #             "name": "Logistic Regression",  # The name of the metric. Visualized as the column name in the runs table.
+    #             "numberValue": log_reg,  # The value of the metric. Must be a numeric value.
+    #             "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+    #         },
+    #         {
+    #             "name": "Gaussian Naive Bayes",  # The name of the metric. Visualized as the column name in the runs table.
+    #             "numberValue": gauss_nb,  # The value of the metric. Must be a numeric value.
+    #             "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+    #         },
+    #         {
+    #             "name": "K-Nearest Neighbors",  # The name of the metric. Visualized as the column name in the runs table.
+    #             "numberValue": k_nearest,  # The value of the metric. Must be a numeric value.
+    #             "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+    #         },
+    #         {
+    #             "name": "Support Vector Machine (SVM)",  # The name of the metric. Visualized as the column name in the runs table.
+    #             "numberValue": svm_result,  # The value of the metric. Must be a numeric value.
+    #             "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
+    #         },
+    #     ]
+    # }
+
+    # pp(metrics)
+    with open(mlpipeline_metrics_path, "w") as f:
+        f.write(json.dumps(metrics))
 
 
 @dsl.pipeline(
     name="Simple Overrideable Data Connector",
     description="A simple component designed to demonstrate a multistep pipeline.",
 )
-def simple_pipeline_component(train_data="", test_data="", epochs=2, sha=""):
-    training_dataframe = None
-    testing_dataframe = None
-    if train_data_url == "": 
-    train_data_url = "https://same-project.github.io/samples//train.csv"
-    test_data_url = "https://same-project.github.io/samples/houseprice/test.csv"
-    train_download_op = download_data_factory(train_data_url)
-    train_download_op.set_display_name("Download training data")
-    test_download_op = download_data_factory(test_data_url)
-    test_download_op.set_display_name("Download test data")
+def simple_pipeline_component(
+    keyvault_url: str = "",
+    keyvault_credentials_b64: str = "",
+    connection_string_secret_name: str = "",
+    percent_to_withhold_for_test: float = 0.2,
+    sha: str = "",
+):
+    import os
 
-    add_op = func_to_container_op(func=add)
-    multiply_op = func_to_container_op(func=multiply)
-    subtract_op = func_to_container_op(func=substract)
-    divide_op = func_to_container_op(func=divide)
+    cache_buster_break = str(datetime.now().isoformat)
+    cache_buster = "1"
 
-    train_op = func_to_container_op(func=train)
+    secret_op = func_to_container_op(
+        func=load_secret,
+        base_image="python:3.9-slim-buster",
+        packages_to_install=[
+            "azure-keyvault-secrets==4.2.0",
+            "azure-identity==1.5.0",
+        ],
+    )
+    secret_task = secret_op(
+        keyvault_url=keyvault_url,
+        keyvault_credentials_b64=keyvault_credentials_b64,
+        connection_string_secret_name=connection_string_secret_name,
+    )
+    secret_task.execution_options.caching_strategy.max_cache_staleness = "P0D"
 
-    # input 42
-    starting_input = 42
+    #     secret_op = func_to_container_op(
+    #     func=load_secret_dapr,
+    #     base_image="python:3.9-slim-buster",
+    #     packages_to_install=[
+    #         "dapr==1.1.0",
+    #     ],
+    #     annotations={
+    #         "dapr.io/enabled": "true",
+    #         "dapr.io/app-id": "external-datasource-retrieve-secret",
+    #         "dapr.io/app-port": "7777",
+    #     },
+    # )
+    # secret_task = secret_op(connection_string_secret_name)
 
-    # add 8 to 42 = 50
-    add_task = add_op(starting_input, 8)
+    def base64_decode_to_dict(b64string: str) -> dict:
+        import base64
 
-    # substract 18 from 42 = 24
-    subtract_task = subtract_op(starting_input, 18)
+        decode_secret_b64_bytes = b64string.encode("ascii")
+        decode_secret_raw_bytes = base64.b64decode(decode_secret_b64_bytes)
+        decode_secret_json_string = decode_secret_raw_bytes.decode("ascii")
+        return json.loads(decode_secret_json_string)
 
-    # multiply output 24 * 3 = 72
-    multiply_task = multiply_op(subtract_task.output, 3)
+    # defining the branching condition
+    training_dataframe_string = ""
+    testing_dataframe_string = ""
 
-    # add 50 + output of multiple = 122
-    add_multiply_task = add_op(50, multiply_task.output)
+    visualize_table_op = func_to_container_op(
+        func=visualize_table,
+        base_image="python:3.9-slim-buster",
+        packages_to_install=["pandas>=1.1.5", "tabulate>=0.8.9"],
+    )
+    visualize_table_task = None
 
-    # execute parallel for items 8 paired items = 100
-    paired_items = [
-        {"a": 1, "b": 2},
-        {"a": 3, "b": 4},
-        {"a": 5, "b": 6},
-        {"a": 7, "b": 8},
-    ]
+    with dsl.Condition(secret_task.output == "", "Use-Development-Data"):
+        download_data_op = func_to_container_op(
+            func=download_data,
+            base_image="python:3.9-slim-buster",
+            packages_to_install=[
+                "requests",
+            ],
+        )
 
-    all_results = []
-    # Cannot implement the below until Kubeflow V2 that has a fan in operator (https://docs.google.com/document/d/1fHU29oScMEKPttDA1Th1ibImAKsFVVt2Ynr4ZME05i0/edit)
-    # with dsl.ParallelFor(paired_items, parallelism=4) as item:
-    #     parallel_multiply_task = multiply_op(item.a, item.b)
-    #     all_results.append(parallel_multiply_task)
+        train_download_task = download_data_op(
+            "https://same-project.github.io/samples/external_datasource/train.csv"
+        )
+        train_download_task.after(secret_task)
+        train_download_task.set_display_name("Download training data")
 
-    # aggregate_task = add_op(0, 0)
-    # for i in all_results:
-    #     aggregate_task = add_op(aggregate_task.outputs["result"], i.outputs["result"])
+        test_download_task = download_data_op(
+            "https://same-project.github.io/samples/external_datasource/test.csv"
+        )
+        test_download_task.after(secret_task)
+        test_download_task.set_display_name("Download test data")
 
-    parallel_multiply_task_0 = multiply_op(0, 0)
-    aggregate_task_0 = add_op(0, parallel_multiply_task_0.output)
+        get_dataframe_development_op = func_to_container_op(
+            func=get_dataframes_development,
+            base_image="python:3.9-slim-buster",
+            packages_to_install=[
+                "requests==2.25.0",
+                "pandas>=1.1.5",
+            ],
+        )
 
-    parallel_multiply_task_1 = multiply_op(paired_items[0]["a"], paired_items[0]["b"])
-    aggregate_task_1 = add_op(aggregate_task_0.output, parallel_multiply_task_1.output)
+        dataframe_task = get_dataframe_development_op(
+            training_csv=train_download_task.output,
+            testing_csv=test_download_task.output,
+            cache_buster=cache_buster,
+        )
 
-    parallel_multiply_task_2 = multiply_op(paired_items[1]["a"], paired_items[1]["b"])
-    aggregate_task_2 = add_op(aggregate_task_1.output, parallel_multiply_task_2.output)
+        training_dataframe_string = str(
+            dataframe_task.outputs["training_dataframe_string"]
+        )
+        testing_dataframe_string = str(
+            dataframe_task.outputs["testing_dataframe_string"]
+        )
 
-    parallel_multiply_task_3 = multiply_op(paired_items[2]["a"], paired_items[2]["b"])
-    aggregate_task_3 = add_op(aggregate_task_2.output, parallel_multiply_task_3.output)
+        visualize_table_task = visualize_table_op(
+            training_dataframe_string, testing_dataframe_string
+        )
+        visualize_table_task.after(dataframe_task)
 
-    parallel_multiply_task_4 = multiply_op(paired_items[3]["a"], paired_items[3]["b"])
-    aggregate_task_4 = add_op(aggregate_task_3.output, parallel_multiply_task_4.output)
+    with dsl.Condition(secret_task.output != "", "Use-Production-Data"):
+        get_dataframe_live_op = func_to_container_op(
+            func=get_dataframes_live,
+            base_image="python:3.9-slim-buster",
+            packages_to_install=[
+                "SQLAlchemy>=1.4.11",
+                "psycopg2-binary>=2.8.6",
+                "kubernetes==11.0.0",
+                "requests==2.25.0",
+                "scikit-learn>=0.24.1",
+                "pandas>=1.1.5",
+            ],
+        )
+        print(f"About to input: {str(secret_task.output)}")
+        dataframe_task = get_dataframe_live_op(
+            postgres_connection_string_b64=str(secret_task.output),
+            percent_to_withhold_for_test=percent_to_withhold_for_test,
+            cache_buster=cache_buster,
+        )
+        training_dataframe_string = str(
+            dataframe_task.outputs["training_dataframe_string"]
+        )
+        testing_dataframe_string = str(
+            dataframe_task.outputs["testing_dataframe_string"]
+        )
+        visualize_table_task = visualize_table_op(
+            training_dataframe_string=training_dataframe_string,
+            testing_dataframe_string=testing_dataframe_string,
+            cache_buster=cache_buster,
+        )
+        visualize_table_task.after(dataframe_task)
 
-    # add add_multiply to aggregate_task_4 = 222
-    mid_total_task = add_op(add_multiply_task.output, aggregate_task_4.output)
-
-    # Final mid_total_task + add_task = 272
-    final_total_task = add_op(mid_total_task.output, add_task.output)
-
-    print("Final Total: {final_total_task.output}")
+    train_op = func_to_container_op(
+        func=train,
+        base_image="python:3.9-slim-buster",
+        packages_to_install=[
+            "imbalanced-learn>=0.8.0",
+            "scikit-learn>=0.24.1",
+            "pandas>=1.1.5",
+            "seaborn",
+        ],
+    )
 
     train_task = train_op(
-        train_data="",
-        test_data="",
-        total=final_total_task.output,
+        training_dataframe_string=training_dataframe_string,
+        testing_dataframe_string=testing_dataframe_string,
+        cache_buster=cache_buster_break,
     )
