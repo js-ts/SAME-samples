@@ -16,6 +16,7 @@ import pprint
 from numpy import testing
 import pandas as pd
 from pandas import DataFrame
+from requests import head
 
 
 def python_function_factory(
@@ -208,16 +209,25 @@ def visualize_table(
 
     metadata = {
         "outputs": [
-            # Markdown that is hardcoded inline
             {
+                "type": "table",
                 "storage": "inline",
-                "source": f"# Training Table\n{training_df.head().to_markdown()}",
-                "type": "markdown",
+                "format": "csv",
+                "header": [x for x in training_df.columns],
+                "source": training_df.head().to_csv(
+                    header=False,
+                    index=False,
+                ),
             },
             {
+                "type": "table",
                 "storage": "inline",
-                "source": f"# Testing Table\n{testing_df.head().to_markdown()}",
-                "type": "markdown",
+                "format": "csv",
+                "header": [x for x in testing_df.columns],
+                "source": testing_df.head().to_csv(
+                    header=False,
+                    index=False,
+                ),
             },
         ]
     }
@@ -253,66 +263,28 @@ def train(
         "metrics": [
             {
                 "name": "Logistic-Regression",  # The name of the metric. Visualized as the column name in the runs table.
-                "numberValue": log_reg,  # The value of the metric. Must be a numeric value.
+                "numberValue": log_reg
+                / 100.0,  # The value of the metric. Must be a numeric value.
                 "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
             },
             {
                 "name": "Gaussian-Naive-Bayes",  # The name of the metric. Visualized as the column name in the runs table.
-                "numberValue": gauss_nb + 0.1,
+                "numberValue": gauss_nb / 100.0,
                 "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
             },
             {
                 "name": "K-Nearest-Neighbors",  # The name of the metric. Visualized as the column name in the runs table.
-                "numberValue": k_nearest + 0.2,
+                "numberValue": k_nearest / 100.0,
                 "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
             },
             {
                 "name": "Support-Vector-Machine",  # The name of the metric. Visualized as the column name in the runs table.
-                "numberValue": svm_result + 0.3,
+                "numberValue": svm_result / 100.0,
                 "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
             },
         ]
     }
 
-    # import random
-
-    # log_reg = random.triangular(91.0, 94, 98.7)
-    # gauss_nb = random.triangular(90.0, 95, 99)
-    # k_nearest = random.triangular(70.0, 80, 85.0)
-    # svm_result = random.triangular(94.0, 96.0, 99.4)
-
-    # if training_dataframe_string.find("TEST_") == -1:
-    #     log_reg *= random.triangular(0.8, 0.95, 0.99)
-    #     gauss_nb *= random.triangular(0.8, 0.95, 0.99)
-    #     k_nearest *= random.triangular(0.8, 0.95, 0.99)
-    #     svm_result *= random.triangular(0.8, 0.95, 0.99)
-
-    # metrics = {
-    #     "metrics": [
-    #         {
-    #             "name": "Logistic Regression",  # The name of the metric. Visualized as the column name in the runs table.
-    #             "numberValue": log_reg,  # The value of the metric. Must be a numeric value.
-    #             "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
-    #         },
-    #         {
-    #             "name": "Gaussian Naive Bayes",  # The name of the metric. Visualized as the column name in the runs table.
-    #             "numberValue": gauss_nb,  # The value of the metric. Must be a numeric value.
-    #             "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
-    #         },
-    #         {
-    #             "name": "K-Nearest Neighbors",  # The name of the metric. Visualized as the column name in the runs table.
-    #             "numberValue": k_nearest,  # The value of the metric. Must be a numeric value.
-    #             "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
-    #         },
-    #         {
-    #             "name": "Support Vector Machine (SVM)",  # The name of the metric. Visualized as the column name in the runs table.
-    #             "numberValue": svm_result,  # The value of the metric. Must be a numeric value.
-    #             "format": "PERCENTAGE",  # The optional format of the metric. Supported values are "RAW" (displayed in raw format) and "PERCENTAGE" (displayed in percentage format).
-    #         },
-    #     ]
-    # }
-
-    # pp(metrics)
     with open(mlpipeline_metrics_path, "w") as f:
         f.write(json.dumps(metrics))
 
@@ -381,6 +353,17 @@ def simple_pipeline_component(
     )
     visualize_table_task = None
 
+    train_op = func_to_container_op(
+        func=train,
+        base_image="python:3.9-slim-buster",
+        packages_to_install=[
+            "imbalanced-learn>=0.8.0",
+            "scikit-learn>=0.24.1",
+            "pandas>=1.1.5",
+            "seaborn",
+        ],
+    )
+
     with dsl.Condition(secret_task.output == "", "Use-Development-Data"):
         download_data_op = func_to_container_op(
             func=download_data,
@@ -429,6 +412,12 @@ def simple_pipeline_component(
         )
         visualize_table_task.after(dataframe_task)
 
+        train_task = train_op(
+            training_dataframe_string=training_dataframe_string,
+            testing_dataframe_string=testing_dataframe_string,
+            cache_buster=cache_buster_break,
+        )
+
     with dsl.Condition(secret_task.output != "", "Use-Production-Data"):
         get_dataframe_live_op = func_to_container_op(
             func=get_dataframes_live,
@@ -461,19 +450,8 @@ def simple_pipeline_component(
         )
         visualize_table_task.after(dataframe_task)
 
-    train_op = func_to_container_op(
-        func=train,
-        base_image="python:3.9-slim-buster",
-        packages_to_install=[
-            "imbalanced-learn>=0.8.0",
-            "scikit-learn>=0.24.1",
-            "pandas>=1.1.5",
-            "seaborn",
-        ],
-    )
-
-    train_task = train_op(
-        training_dataframe_string=training_dataframe_string,
-        testing_dataframe_string=testing_dataframe_string,
-        cache_buster=cache_buster_break,
-    )
+        train_task = train_op(
+            training_dataframe_string=training_dataframe_string,
+            testing_dataframe_string=testing_dataframe_string,
+            cache_buster=cache_buster_break,
+        )
