@@ -6,3 +6,4 @@
 __pycache__
 connection_string_secret.yaml
 component_store
+.ipynb_checkpoints

@@ -5,13 +5,15 @@ description = ""
 authors = ["David Aronchick <aronchick@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.8"
 jupyter = "^1.0.0"
 ipython = "^7.22.0"
 dill = "^0.3.3"
 beautifulsoup4 = "^4.9.3"
 Pillow = "^8.2.0"
 plotly = "^4.14.3"
+tensorflow = "^2.4.1"
+pandas = "^1.2.4"
 
 [tool.poetry.dev-dependencies]
 
