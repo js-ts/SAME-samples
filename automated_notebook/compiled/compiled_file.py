@@ -14,7 +14,6 @@
 # +
 # First Step
 import tensorflow
-import requests
 
 a = 3
 
@@ -24,8 +23,8 @@ a = 3
 from PIL import Image
 
 b = a + 5
-image_url = "https://same-project.github.io/SAME-samples/automated_notebook/FaroeIslands.jpeg"
-image = Image.open(requests.get(image_url, stream=True).raw)
+
+image = Image.open("FaroeIslands.jpeg")
 image.show()
 
 # +

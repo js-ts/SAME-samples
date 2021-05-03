@@ -22,7 +22,6 @@ def root():
             "plotly",
             # PIL", - this is detected as a package, but it's wrong  - should be "Pillow"
             "Pillow",
-            "requests",
         ],
     )
     function_0001_task = function_0001_op()

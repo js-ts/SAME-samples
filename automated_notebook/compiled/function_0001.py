@@ -22,11 +22,10 @@ def function_0001():
     # First Step
 
     from PIL import Image
-    import requests
 
     b = a + 5
-    image_url = "https://same-project.github.io/SAME-samples/automated_notebook/FaroeIslands.jpeg"
-    image = Image.open(requests.get(image_url, stream=True).raw)
+
+    image = Image.open("FaroeIslands.jpeg")
     image.show()
 
     # +
