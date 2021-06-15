@@ -7,7 +7,7 @@ authors = ["David Aronchick <aronchick@gmail.com>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 jupyter = "^1.0.0"
-numpy = "^1.20.3"
+numpy = "1.21.0rc2"
 
 [tool.poetry.dev-dependencies]
 
