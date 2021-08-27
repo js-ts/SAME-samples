@@ -8,6 +8,8 @@ authors = ["David Aronchick <aronchick@gmail.com>"]
 python = "^3.8"
 kfp = "^1.7.2"
 azureml-core = {version = "^1.33", python = ">=3.8,<3.9p"}
+jupyter = "^1.0.0"
+tensorflow = "^2.6.0"
 
 [tool.poetry.dev-dependencies]
 
