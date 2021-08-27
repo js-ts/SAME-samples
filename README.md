@@ -12,7 +12,5 @@ curl -L0 https://get.sameproject.org/ | bash -
 
 ## The Samples
 
-1. [House price prediction using stacked regression](houseprice/README.md)
-2. [Complex Graph](complex_graph/README.md)
-3. [External Datasource](external_datasource/README.md)
-4. [Automated Notebook](automated_notebook/README.md)
+1. [Hello World](01-hello-world/README.md)
+
