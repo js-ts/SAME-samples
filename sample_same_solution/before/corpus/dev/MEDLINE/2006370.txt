@@ -1,1 +1,0 @@
-Relation médecin-malade et droits des patients .

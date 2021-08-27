@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "01-hello-world"
+version = "0.1.0"
+description = ""
+authors = ["David Aronchick <aronchick@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+kfp = "^1.7.2"
+azureml-core = {version = "^1.33", python = ">=3.8,<3.9p"}
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
