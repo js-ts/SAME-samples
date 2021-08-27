@@ -1,12 +1,12 @@
 apiVersion: projectsame.io/v1alpha1
 metadata:
-  name: SampleComplicatedNotebook
-  version: 0.0.53
+  name: HelloWorldNotebook
+  version: 0.0.1
 pipeline:
-  name: "Sample Complicated Notebook"
-  package: sample_notebook.ipynb
+  name: "Hello World Notebook"
+  package: 01-hello-world.ipynb
 run:
-  name: "Sample Complicated Notebook - Run"
+  name: "Hello World Notebook - Run"
   parameters:
     sample_parameter: 0.841
     sample_complicated_parameter:
