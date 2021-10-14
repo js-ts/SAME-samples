@@ -1,16 +1,3 @@
 ## Sample Data Science projects to be used with SAME
 
-This repositories contained sample Data Science projects ready for use with SAME. To get started,
-
-1. Install SAME
-```
-curl -L0 https://get.sameproject.org/ | bash -
-```
-
-2. Clone this repository
-3. Choose a sample in the `samples` directory to get started.
-
-## The Samples
-
-1. [Hello World](01-hello-world/README.md)
-
+This repository was designed to have a number of examples inside it allowing demonstration of real world customer problems using SAME. However, we have found that because each example is often many files combined, we have moved to one repo per example, each one of which starts with `example-*`. This repo is for archival purposes only.
