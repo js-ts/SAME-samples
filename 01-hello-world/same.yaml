@@ -7,6 +7,7 @@ notebook:
   path: 01-hello-world.ipynb
 run:
   name: "Hello World Notebook - Run"
+  sha: 24a95219b3fce8402561d6b713bb435d6d5d51f2132d3c32703df8562db5b718
   parameters:
     sample_parameter: 0.841
     sample_complicated_parameter:
