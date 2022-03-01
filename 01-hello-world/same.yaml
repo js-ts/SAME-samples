@@ -4,7 +4,7 @@ metadata:
   version: 0.0.1
 notebook:
   name: "Hello World Notebook"
-  package: 01-hello-world.ipynb
+  path: 01-hello-world.ipynb
 run:
   name: "Hello World Notebook - Run"
   parameters:

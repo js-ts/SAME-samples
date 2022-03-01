@@ -4,7 +4,7 @@ metadata:
   version: 0.0.53
 notebook:
   name: "Sample Complicated Notebook"
-  package: sample_notebook.ipynb
+  path: sample_notebook.ipynb
 run:
   name: "Sample Complicated Notebook - Run"
   parameters:
