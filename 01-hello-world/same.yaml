@@ -2,7 +2,7 @@ apiVersion: projectsame.io/v1alpha1
 metadata:
   name: HelloWorldNotebook
   version: 0.0.1
-pipeline:
+notebook:
   name: "Hello World Notebook"
   package: 01-hello-world.ipynb
 run:

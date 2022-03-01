@@ -2,7 +2,7 @@ apiVersion: projectsame.io/v1alpha1
 metadata:
   name: SampleComplicatedNotebook
   version: 0.0.53
-pipeline:
+notebook:
   name: "Sample Complicated Notebook"
   package: sample_notebook.ipynb
 run:
