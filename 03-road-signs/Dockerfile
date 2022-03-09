@@ -4,6 +4,5 @@ USER root
 RUN apt-get update && apt-get install -y python3-opencv
 USER jovyan
 RUN pip install opencv-python scikit-image matplotlib
-RUN pip install sameproject==0.1.6
-RUN pip install dotscience
+RUN pip install sameproject==0.1.7
 ENV GRANT_SUDO=yes
