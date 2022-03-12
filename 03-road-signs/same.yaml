@@ -1,0 +1,14 @@
+apiVersion: sameproject.io/v1alpha1
+metadata:
+  name: Roadsigns
+  version: 0.0.1
+environments:
+  default:
+    image_tag: combinatorml/jupyterlab-tensorflow-opencv:0.7
+notebook:
+  name: "Roadsigns"
+  path: roadsigns.ipynb
+run:
+  name: "Roadsigns - Run"
+  sha: 24a95219b3fce8402561d6b713bb435d6d5d51f2132d3c32703df8562db5b718
+  parameters: {}
